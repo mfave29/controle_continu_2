@@ -176,7 +176,7 @@ track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, 
 
 colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
 rownames(track) <- sample.names
-head(track)```
+head(track)
 ```
 
 
@@ -187,9 +187,10 @@ Cela nous a permis de vérifier la cohérence. En effet, il est normal qu'il n'y
 Grâce à la fonction "assignTaxonomy" permet de classer les séquences avec une taxonomie connue. Nous prenons la base de données Silva. 
 
 ```{r}
-wget silva_nr_v132_train_set.fa.gz
+taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
 ```
-Le mettre dans le répertoire où il y a les fichiers fastq. 
+
+
 
 
 Nous allons regarder les affectations taxonomiques : 
@@ -199,7 +200,7 @@ rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
 
-Regardé les groupes les plus représentés et les taxons les plus abondants dans les échantillons de la rade de Brest.
+Nous observons qu'il y a une grande quantité de bactéries faisant partie du phylum des Proteobacteria maos également beaucoup de bactéries non répertoriées.
 
 
 
@@ -207,16 +208,11 @@ Regardé les groupes les plus représentés et les taxons les plus abondants dan
 S'il y a une communauté fictive faire
 
 ```{r}
-unqs.mock <- seqtab.nochim["Mock",]
+unqs.mock <- seqtab.nochim["Mock"]
 unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
 cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
 ```
 
-```{r}
-mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
-match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
-cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
-```
 
 
 
