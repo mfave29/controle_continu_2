@@ -66,5 +66,160 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,190), trimLeft=c
 head(out)
 ```
 
+Nous avons choisi de couper à 240 pb pour les forward car après, la qualité diminuait. Cela a été fait à 190pb pour les reverse. 
+Nous avions vu précédemment, par les graphiques, que la qualité des forward était meilleur que les reverse.
+Le paramètre "maxEE=0" signifie qu'on veut aucune "erreur attendue" dans une lecture, ce qui permet un bon filtrage. 
+
+Nous voyons que le filtrage a été effectué, le nombre de reads retenus étant inférieur aux reads avant le filtrage. 
+
+Le paramètre trimLeft a été utilisé afin d'enlever les primers utilisés précédemment. 
+
+
+# Apprendre le taux d'erreur
+Les manipulations suivantes permettront de visualiser l'estimation des taux d'erreur et l'inférence de la composition de l'échantillon, afin de converger pour une meilleure cohérence. Nous faisons cela pour les Forward tout d'abord, puis pour les Reverse.
+
+```{r}
+errF <- learnErrors(filtFs, multithread=TRUE)
+```
+Il s'agit de nombre de bases qui seront utilisées pour l'apprentisssage du taux d'erreur pour les forward.
+
+```{r}
+errR <- learnErrors(filtRs, multithread=TRUE)
+```
+Il s'agit du nombre de bases qui seront utilisées pour l'apprentissage du taux d'erreur pour les Reverse.
+
+Nous allons ensuite visualiser le taux d'erreurs, selon des erreurs de bases qui pourraient se produire. Cet exemple concerne les forward.
+```{r}
+plotErrors(errF, nominalQ=TRUE)
+```
+
+
+Nous voyons que les taux d'erreur ont une tendance à diminuer des lors que l'ob obtient une qualité plus forte. Ainsi, nous pouvons considérer d'après ce graphique que tout semble bon. 
+
+ 
+# Inférence des échantillons
+Nous appliquons cela aux forward filtrés et découpés. Cela permet de faire des comparaisons. Nous commençons par les forward puis nous faisons cette manipulation pour les reverse.
+
+```{r}
+dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+```
+
+
+```{r}
+dadaRs <- dada(filtRs, err=errR, multithread = TRUE)
+```
+
+
+```{r}
+dadaFs[[1]]
+```
+
+Ce résultat signifie qu'il y a 1023 variants de séquences à partir de 38902 séquences uniques pour le premier échantilon (Forward).
+
+
+
+# Fusions des reads
+La fusion des forward et des reverse permet d'avoir des séquences débruitées. Cela peut se faire par complémentarité inverse entre les forward et les reverse. Il y a formation de contigs. Il faut absolument qu'il y ait un certain chevauchement. 
+
+La fonction "merge" permet de faire cela, tout en éliminant les paires qui ne se chevauchent pas donc, ou s'il y  trop de divergences dans cette région chevauchante. 
+Le fait de mettre "verbose=TRUE" permet d'avoir une sortie sur le document. 
+
+```{r}
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+```
+
+
+# Construction d'une table de séquence
+Nous construisons une table ASV, pour Amplicon Sequence Variant table. 
+Un variant de séquence d'amplicon est une séquence unique d'ADN. Ces variants sont créés après le filtrage que nous avons effectué auparavant. Cela permet la classification des séquences en groupement d'espèces. Cette méthode est plus précise que les OTU car la première permet de voir ne serait-ce qu'un changement de nucléotide. 
+
+```{r}
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+```
+
+Nous voyons qu'il y a 22228 ASV dans les 11 échantillons. 
+
+## Distribution des longueurs des séquences
+```{r}
+table(nchar(getSequences(seqtab)))
+```
+Nous avons les longueurs des séquences. 
+
+```{r}
+seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 226:375]
+```
+
+
+# Elimination des chimères
+Dada ne permet pas d'éliminer les chimères. Ceci est plus facile à faire à partir d'ASV en comparaison aux OTU. 
+
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+```
+
+```{r}
+sum(seqtab.nochim)/sum(seqtab)
+```
+
+
+Nous voyons qu'il y a "1-le résultat- % de chimères. 
+
+
+# Suivi des reads dans le pipeline
+Ces tests permettent de voir à quel degré nous avons conservé les reads de départ. Comparer les pertes !!
+
+```{r}
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)```
+```
+
+
+Cela nous a permis de vérifier la cohérence. En effet, il est normal qu'il n'y ait pas de grande perte des reads. 
+
+
+# Assignation de la taxonomie
+Grâce à la fonction "assignTaxonomy" permet de classer les séquences avec une taxonomie connue. Nous prenons la base de données Silva. 
+
+```{r}
+wget silva_nr_v132_train_set.fa.gz
+```
+Le mettre dans le répertoire où il y a les fichiers fastq. 
+
+
+Nous allons regarder les affectations taxonomiques : 
+```{r}
+taxa.print <- taxa
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+
+Regardé les groupes les plus représentés et les taxons les plus abondants dans les échantillons de la rade de Brest.
+
+
+
+# Evaluation de la précision
+S'il y a une communauté fictive faire
+
+```{r}
+unqs.mock <- seqtab.nochim["Mock",]
+unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
+cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
+```
+
+```{r}
+mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
+match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
+cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
+```
+
+
+
+
 
 
