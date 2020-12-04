@@ -23,7 +23,7 @@ list.files(path)
 fnFs <- sort(list.files(path, pattern="_R1.fastq", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2.fastq", full.names = TRUE))
 
-sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`,1)
+sample.names <- sapply(strsplit(basename(fnFs), "_R"), `[`,1)
 ```
 
 
