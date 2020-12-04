@@ -191,8 +191,6 @@ taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multi
 ```
 
 
-
-
 Nous allons regarder les affectations taxonomiques : 
 ```{r}
 taxa.print <- taxa
@@ -200,7 +198,7 @@ rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
 
-Nous observons qu'il y a une grande quantité de bactéries faisant partie du phylum des Proteobacteria maos également beaucoup de bactéries non répertoriées.
+Nous observons qu'il y a une grande quantité de bactéries faisant partie du phylum des Proteobacteria maos également beaucoup de bactéries non répertoriées. Bien que ce tableau présenté ne concerne que les 6 premiers taxons, il s'avère que le tableau global comporte plus de taxons, dont beaucoup d'autres Proteobacteries et de Bacteroidota. 
 
 
 
@@ -213,6 +211,7 @@ unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in
 cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
 ```
 
+# Conclusion
 
 
 
