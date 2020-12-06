@@ -258,32 +258,6 @@ ps
 
 
 ```{r}
-theme_set(theme_bw())
-```
-
-```{r}
-samples.out <- rownames(seqtab.nochim)
-subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
-gender <- substr(subject,1,1)
-subject <- substr(subject,2,999)
-day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
-samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
-samdf$When <- "Early"
-samdf$When[samdf$Day>100] <- "Late"
-rownames(samdf) <- samples.out
-```
-
-
-```{r}
-ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
-               sample_data(samdf), tax_table(taxa))
-ps <- prune_samples(sample_names(ps) != "Mock", ps) # Remove mock sample
-```
-
-
-
-
-```{r}
 rank_names(ps)
 ```
 
@@ -320,8 +294,6 @@ filterPhyla = c("Campilobacterota", "Dependentiae")
 ps1 = subset_taxa(ps, !Phylum %in% filterPhyla)
 ps1
 ```
-
-
 
 
 ```{r}
@@ -362,4 +334,57 @@ ps3 = tax_glom(ps2, "Genus", NArm = TRUE)
 h1 = 0.4
 ps4 = tip_glom(ps2, h = h1)
 ```
+
+```{r}
+multiPlotTitleTextSize = 15
+p2tree = plot_tree(ps2, method = "treeonly",
+                   ladderize = "left",
+                   title = "Before Agglomeration") +
+  theme(plot.title = element_text(size = multiPlotTitleTextSize))
+p3tree = plot_tree(ps3, method = "treeonly",
+                   ladderize = "left", title = "By Genus") +
+  theme(plot.title = element_text(size = multiPlotTitleTextSize))
+p4tree = plot_tree(ps4, method = "treeonly",
+                   ladderize = "left", title = "By Height") +
+  theme(plot.title = element_text(size = multiPlotTitleTextSize))
+```
+
+
+```{r}
+# group plots together
+grid.arrange(nrow = 1, p2tree, p3tree, p4tree)
+```
+
+```{r}
+plot_abundance = function(physeq,title = "",
+                          Facet = "Order", Color = "Phylum"){
+  # Arbitrary subset, based on Phylum, for plotting
+  p1f = subset_taxa(physeq, Phylum %in% c("Proteobacteria"))
+  mphyseq = psmelt(p1f)
+  mphyseq <- subset(mphyseq, Abundance > 0)
+  ggplot(data = mphyseq, mapping = aes_string(x = "",y = "Abundance",
+                              color = Color, fill = Color)) +
+    geom_violin(fill = NA) +
+    geom_point(size = 1, alpha = 0.3,
+               position = position_jitter(width = 0.3)) +
+    facet_wrap(facets = Facet) + scale_y_log10()+
+    theme(legend.position="none")
+}
+```
+
+
+```{r}
+# Transform to relative abundance. Save as new object.
+ps3ra = transform_sample_counts(ps3, function(x){x / sum(x)})
+```
+
+```{r}
+plotBefore = plot_abundance(ps3,"")
+plotAfter = plot_abundance(ps3ra,"")
+# Combine each plot into one graphic.
+grid.arrange(nrow = 2, plotBefore, plotAfter)
+```
+
+
+
 
