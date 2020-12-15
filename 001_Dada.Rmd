@@ -14,7 +14,7 @@ tar xvzf EcoG2_data_cc2.tar.gz
 ```
 
 ```{r}
-path <- "~/controle_continu_2/Stratif_CC2"
+path <- "~/controle_continu_2/controle_continu_2/Stratif_CC2"
 list.files(path)
 ```
 
@@ -55,20 +55,15 @@ names(filtFs) <- sample.names
 names(filtRs) <- sample.names
 ```
 
-```{r}
-library(BiocManager)
-```
-
-
 
 ```{r}
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,190), trimLeft=c(21,21), maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE, compress=TRUE, multithread = TRUE)
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(250,220), trimLeft=c(21,21), maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE, compress=TRUE, multithread = TRUE)
 head(out)
 ```
 
-Nous avons choisi de couper à 240 pb pour les forward car après, la qualité diminuait. Cela a été fait à 190pb pour les reverse. 
+Nous avons choisi de couper à 210 pb pour les forward car après, la qualité diminuait. Cela a été fait à 180pb pour les reverse. 
 Nous avions vu précédemment, par les graphiques, que la qualité des forward était meilleur que les reverse.
-Le paramètre "maxEE=0" signifie qu'on veut aucune "erreur attendue" dans une lecture, ce qui permet un bon filtrage. 
+. 
 
 Nous voyons que le filtrage a été effectué, le nombre de reads retenus étant inférieur aux reads avant le filtrage. 
 
@@ -94,7 +89,7 @@ plotErrors(errF, nominalQ=TRUE)
 ```
 
 
-Nous voyons que les taux d'erreur ont une tendance à diminuer des lors que l'ob obtient une qualité plus forte. Ainsi, nous pouvons considérer d'après ce graphique que tout semble bon. 
+Nous voyons que les taux d'erreur ont une tendance à diminuer des lors que l'on obtient une qualité plus forte. Ainsi, nous pouvons considérer d'après ce graphique que tout semble bon. 
 
  
 # Inférence des échantillons
@@ -114,7 +109,7 @@ dadaRs <- dada(filtRs, err=errR, multithread = TRUE)
 dadaFs[[1]]
 ```
 
-Ce résultat signifie qu'il y a 1023 variants de séquences à partir de 38902 séquences uniques pour le premier échantilon (Forward).
+Ce résultat signifie qu'il y a 937 variants de séquences à partir de 38016 séquences uniques pour le premier échantilon (Forward).
 
 
 
@@ -138,7 +133,7 @@ seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
 ```
 
-Nous voyons qu'il y a 22228 ASV dans les 11 échantillons. 
+Nous voyons qu'il y a 11099 ASV dans les 11 échantillons. 
 
 ## Distribution des longueurs des séquences
 ```{r}
@@ -146,9 +141,6 @@ table(nchar(getSequences(seqtab)))
 ```
 Nous avons les longueurs des séquences. 
 
-```{r}
-seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 226:375]
-```
 
 
 # Elimination des chimères
@@ -164,7 +156,7 @@ sum(seqtab.nochim)/sum(seqtab)
 ```
 
 
-Nous voyons qu'il y a "1-le résultat- % de chimères. 
+Nous voyons qu'il y a environ 20% de chimères. 
 
 
 # Suivi des reads dans le pipeline
@@ -180,15 +172,21 @@ head(track)
 ```
 
 
-Cela nous a permis de vérifier la cohérence. En effet, il est normal qu'il n'y ait pas de grande perte des reads. 
+Cela nous a permis de vérifier la cohérence. Nous voyons donc que le nombre a chuté à l'issue du filtrage. 
 
 
 # Assignation de la taxonomie
 Grâce à la fonction "assignTaxonomy" permet de classer les séquences avec une taxonomie connue. Nous prenons la base de données Silva. 
 
-```{r}
-taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
+```{bash}
+wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz
 ```
+
+```{r}
+taxa <- assignTaxonomy(seqtab.nochim, "~/controle_continu_2/controle_continu_2/silva_nr_v132_train_set.fa.gz", multithread=TRUE)
+```
+
+
 
 
 Nous allons regarder les affectations taxonomiques : 
@@ -198,7 +196,7 @@ rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
 
-Nous observons qu'il y a une grande quantité de bactéries faisant partie du phylum des Proteobacteria maos également beaucoup de bactéries non répertoriées. Bien que ce tableau présenté ne concerne que les 6 premiers taxons, il s'avère que le tableau global comporte plus de taxons, dont beaucoup d'autres Proteobacteries et de Bacteroidota. 
+Nous observons les 6 premiers taxons. 
 
 
 
@@ -210,26 +208,25 @@ unqs.mock <- seqtab.nochim["Mock"]
 unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
 cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
 ```
-
 ```{r}
-library(phyloseq); packageVersion("phyloseq")
+samples.out <- rownames(seqtab.nochim)
+profondeur <- sapply(strsplit(samples.out, "D"), `[`, 1)
+date <- substr(profondeur,0,11)
+samdf <- data.frame(Profondeur=profondeur, Date=date)
+samdf$Profondeur[samdf$Date>11] <- c("Fond","Median","Surface")
+samdf$Date[samdf$Profondeur>11] <- c("10sept14","11mars15")
+rownames(samdf) <- samples.out
 ```
 
 ```{r}
-library(Biostrings); packageVersion("Biostrings")
+write.csv(samdf, "samdf.csv")
 ```
 
 ```{r}
-library(ggplot2); packageVersion("ggplot2")
-```
-```{r}
-BiocManager::install("phangorn")
-BiocManager::install("DECIPHER")
+samdf <-read.table("~/controle_continu_2/controle_continu_2/samdf.csv", sep=",", header=TRUE, row.names = 1)
 ```
 
-```{r}
-library(gridExtra)
-```
+
 
 ```{r}
 library(phangorn)
@@ -251,8 +248,10 @@ detach("package:phangorn", unload=TRUE)
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
                tax_table(taxa),phy_tree(fitGTR$tree))
-ps <- prune_samples(sample_names(ps) != "Mock", ps) # Remove mock sample
 ps
+```
+```{r}
+plot_richness(ps, x="Date", measures=c("Shannon", "Simpson"), color="Profondeur")
 ```
 
 
@@ -270,7 +269,6 @@ table(tax_table(ps)[, "Phylum"], exclude = NULL)
 ps <- subset_taxa(ps, !is.na(Phylum) & !Phylum %in% c("", "uncharacterized"))
 ```
 
-
 ```{r}
 # Compute prevalence of each feature, store as data.frame
 prevdf = apply(X = otu_table(ps),
@@ -286,15 +284,13 @@ prevdf = data.frame(Prevalence = prevdf,
 plyr::ddply(prevdf, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
 ```
 
-
 ```{r}
 # Define phyla to filter
-filterPhyla = c("Campilobacterota", "Dependentiae")
+filterPhyla = c("Elusimicrobia", "Epsilonbacteraeota", "Fibrobacteres", "Hydrogenedentes", "Omnitrophicaeota", "PAUC34f")
 # Filter entries with unidentified Phylum.
 ps1 = subset_taxa(ps, !Phylum %in% filterPhyla)
 ps1
 ```
-
 
 ```{r}
 # Subset to the remaining phyla
@@ -305,8 +301,6 @@ ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps),color=Phylum)) +
   scale_x_log10() +  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
   facet_wrap(~Phylum) + theme(legend.position="none")
 ```
-
-
 
 ```{r}
 # Define prevalence threshold as 5% of total samples
@@ -319,6 +313,8 @@ prevalenceThreshold
 keepTaxa = rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
 ps2 = prune_taxa(keepTaxa, ps)
 ```
+
+
 
 ```{r}
 # How many genera would be present after filtering?
@@ -334,6 +330,7 @@ ps3 = tax_glom(ps2, "Genus", NArm = TRUE)
 h1 = 0.4
 ps4 = tip_glom(ps2, h = h1)
 ```
+
 
 ```{r}
 multiPlotTitleTextSize = 15
@@ -359,10 +356,10 @@ grid.arrange(nrow = 1, p2tree, p3tree, p4tree)
 plot_abundance = function(physeq,title = "",
                           Facet = "Order", Color = "Phylum"){
   # Arbitrary subset, based on Phylum, for plotting
-  p1f = subset_taxa(physeq, Phylum %in% c("Proteobacteria"))
+  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetes"))
   mphyseq = psmelt(p1f)
   mphyseq <- subset(mphyseq, Abundance > 0)
-  ggplot(data = mphyseq, mapping = aes_string(x = "",y = "Abundance",
+  ggplot(data = mphyseq, mapping = aes_string(x = "Profondeur",y = "Abundance",
                               color = Color, fill = Color)) +
     geom_violin(fill = NA) +
     geom_point(size = 1, alpha = 0.3,
@@ -371,7 +368,6 @@ plot_abundance = function(physeq,title = "",
     theme(legend.position="none")
 }
 ```
-
 
 ```{r}
 # Transform to relative abundance. Save as new object.
@@ -382,8 +378,68 @@ ps3ra = transform_sample_counts(ps3, function(x){x / sum(x)})
 plotBefore = plot_abundance(ps3,"")
 plotAfter = plot_abundance(ps3ra,"")
 # Combine each plot into one graphic.
-grid.arrange(nrow = 2, plotBefore, plotAfter)
+grid.arrange(nrow = 2,  plotBefore, plotAfter)
 ```
+```{r}
+psOrd = subset_taxa(ps3ra, Order == "Pirellulales")
+plot_abundance(psOrd, Facet = "Genus", Color = NULL)
+```
+
+
+```{r}
+plot_abundance1 = function(physeq,title = "",
+                          Facet = "Order", Color = "Phylum"){
+  # Arbitrary subset, based on Phylum, for plotting
+  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetes"))
+  mphyseq = psmelt(p1f)
+  mphyseq <- subset(mphyseq, Abundance > 0)
+  ggplot(data = mphyseq, mapping = aes_string(x = "Date",y = "Abundance",
+                              color = Color, fill = Color)) +
+    geom_violin(fill = NA) +
+    geom_point(size = 1, alpha = 0.3,
+               position = position_jitter(width = 0.3)) +
+    facet_wrap(facets = Facet) + scale_y_log10()+
+    theme(legend.position="none")
+}
+```
+
+```{r}
+# Transform to relative abundance. Save as new object.
+ps3ra1 = transform_sample_counts(ps3, function(x){x / sum(x)})
+```
+
+```{r}
+plotBefore1 = plot_abundance1(ps3,"")
+plotAfter1 = plot_abundance1(ps3ra1,"")
+# Combine each plot into one graphic.
+grid.arrange(nrow = 2,  plotBefore1, plotAfter1)
+```
+
+```{r}
+psOrd1 = subset_taxa(ps3ra1, Order == "Pirellulales")
+plot_abundance1(psOrd1, Facet = "Genus", Color = NULL)
+```
+
+```{r}
+qplot(sample_data(ps)$profondeur, geom = "histogram",binwidth=20) + xlab("profondeur")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
