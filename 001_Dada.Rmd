@@ -40,6 +40,11 @@ sample.names <- sapply(strsplit(basename(fnFs), "_R"), `[`,1)
 
 Les données ont été nommées selon qu'il s'agisse de reads 1 ou 2. La distinction a été effectuée en considérant la fin des titres des séquences.
 
+```{r}
+library(dada2)
+```
+
+
 # Profils de score de qualité 
 ```{r}
 plotQualityProfile(fnFs[1:2])
