@@ -356,7 +356,7 @@ grid.arrange(nrow = 1, p2tree, p3tree, p4tree)
 plot_abundance = function(physeq,title = "",
                           Facet = "Order", Color = "Phylum"){
   # Arbitrary subset, based on Phylum, for plotting
-  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetes"))
+  p1f = subset_taxa(physeq, Phylum %in% c("Actinobacteria"))
   mphyseq = psmelt(p1f)
   mphyseq <- subset(mphyseq, Abundance > 0)
   ggplot(data = mphyseq, mapping = aes_string(x = "Profondeur",y = "Abundance",
@@ -381,7 +381,7 @@ plotAfter = plot_abundance(ps3ra,"")
 grid.arrange(nrow = 2,  plotBefore, plotAfter)
 ```
 ```{r}
-psOrd = subset_taxa(ps3ra, Order == "Pirellulales")
+psOrd = subset_taxa(ps3ra, Order == "Microtrichales")
 plot_abundance(psOrd, Facet = "Genus", Color = NULL)
 ```
 
@@ -390,7 +390,7 @@ plot_abundance(psOrd, Facet = "Genus", Color = NULL)
 plot_abundance1 = function(physeq,title = "",
                           Facet = "Order", Color = "Phylum"){
   # Arbitrary subset, based on Phylum, for plotting
-  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetes"))
+  p1f = subset_taxa(physeq, Phylum %in% c("Actinobacteria"))
   mphyseq = psmelt(p1f)
   mphyseq <- subset(mphyseq, Abundance > 0)
   ggplot(data = mphyseq, mapping = aes_string(x = "Date",y = "Abundance",
@@ -416,13 +416,19 @@ grid.arrange(nrow = 2,  plotBefore1, plotAfter1)
 ```
 
 ```{r}
-psOrd1 = subset_taxa(ps3ra1, Order == "Pirellulales")
+psOrd1 = subset_taxa(ps3ra1, Order == "Microtrichales")
 plot_abundance1(psOrd1, Facet = "Genus", Color = NULL)
 ```
 
-```{r}
-qplot(sample_data(ps)$profondeur, geom = "histogram",binwidth=20) + xlab("profondeur")
-```
+
+
+
+
+
+
+
+
+
 
 
 
