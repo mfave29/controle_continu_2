@@ -6,6 +6,12 @@ output:
     toc_depth: 2
 ---
 
+
+# Introduction
+
+A travers les différentes approches bioinformatiques utilisées, l'objectif était de voir les influences relatives que pouvaient entraîner la profondeur et la saison sur la structure des communautés planctoniques de la rade de Brest. Enfin, nous voulions voir s'il existait des biomarqueurs de saison (hiver et été).
+
+
 # Importation des données
 
 Les données ont été importées. Il s'agit de prélèvements effectués dans la rade de Brest en 2014 et en 2015. Les données ont été définies dans un répertoire précis.
@@ -196,14 +202,16 @@ Grâce à la fonction "assignTaxonomy", cela permet de classer les séquences av
 wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz
 ```
 
+
 ```{r}
 taxa <- assignTaxonomy(seqtab.nochim, "~/controle_continu_2/controle_continu_2/silva_nr_v132_train_set.fa.gz", multithread=TRUE)
 ```
 
-
+Les taxons ont été assignés à une taxonomie particulière qui leur est propre.
 
 
 Nous allons regarder les affectations taxonomiques : 
+
 ```{r}
 taxa.print <- taxa
 rownames(taxa.print) <- NULL
@@ -215,7 +223,6 @@ Nous observons les 6 premiers taxons.
 
 
 # Evaluation de la précision
-S'il y a une communauté fictive faire
 
 ```{r}
 unqs.mock <- seqtab.nochim["Mock"]
@@ -241,16 +248,16 @@ samdf <-read.table("~/controle_continu_2/controle_continu_2/samdf.csv", sep=",",
 ```
 
 
-
+Le package phangorn doit être téléchargé et appliqué pour la construction d'un arbre phylogénétique plus tard. 
 ```{r}
 library(phangorn)
 library(DECIPHER)
 seqs <- getSequences(seqtab.nochim)
-names(seqs) <- seqs # This propagates to the tip labels of the tree
+names(seqs) <- seqs 
 alignment <- AlignSeqs(DNAStringSet(seqs), anchor=NA,verbose=FALSE)
 phangAlign <- phyDat(as(alignment, "matrix"), type="DNA")
 dm <- dist.ml(phangAlign)
-treeNJ <- NJ(dm) # Note, tip order != sequence order
+treeNJ <- NJ(dm) 
 fit = pml(treeNJ, data=phangAlign)
 fitGTR <- update(fit, k=4, inv=0.2)
 fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
@@ -264,12 +271,15 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
                tax_table(taxa),phy_tree(fitGTR$tree))
 ps
 ```
+
+
+Accessoirement, nous pouvons voir une alpha-diversité.
 ```{r}
 plot_richness(ps, x="Date", measures=c("Shannon", "Simpson"), color="Profondeur")
 ```
 
 
-
+Pour voir les rangs présents dans le jeu de données, les codes suivants sont appliqués. Les taxa sont alors désignés en tant que Phylum.
 ```{r}
 rank_names(ps)
 ```
@@ -278,50 +288,55 @@ rank_names(ps)
 table(tax_table(ps)[, "Phylum"], exclude = NULL)
 ```
 
+A partir de notre jeu de données, et par les choix qui ont été réalisés, les Proteobacteria sont les plus représentés dans nos échantillons, suivis par les Bacteroidetes puis les Cyanobactéries. Les protéobactéries sont des bactéries à Gram négatif.
 
 ```{r}
 ps <- subset_taxa(ps, !is.na(Phylum) & !Phylum %in% c("", "uncharacterized"))
 ```
 
+
+Nous évaluons ensuite la prévalence de chaque élément, présents dans le jeu de données.Ensuite, nous assignons la taxonomie et le nombre total à ce jeu de données.
 ```{r}
-# Compute prevalence of each feature, store as data.frame
 prevdf = apply(X = otu_table(ps),
                MARGIN = ifelse(taxa_are_rows(ps), yes = 1, no = 2),
                FUN = function(x){sum(x > 0)})
-# Add taxonomy and total read counts to this data.frame
+
 prevdf = data.frame(Prevalence = prevdf,
                     TotalAbundance = taxa_sums(ps),
                     tax_table(ps))
 ```
 
+Nous voulons ensuite voir s'il existe des Phylum ayant des faibles prévalences. 
 ```{r}
 plyr::ddply(prevdf, "Phylum", function(df1){cbind(mean(df1$Prevalence),sum(df1$Prevalence))})
 ```
 
+Nous remarquons que quelques Phylum ont une prévalence très faible, que nous excluons pour la suite de notre analyse. Il s'agit d'une étape de filtrage. 
 ```{r}
-# Define phyla to filter
 filterPhyla = c("Elusimicrobia", "Epsilonbacteraeota", "Fibrobacteres", "Hydrogenedentes", "Omnitrophicaeota", "PAUC34f")
-# Filter entries with unidentified Phylum.
+
 ps1 = subset_taxa(ps, !Phylum %in% filterPhyla)
 ps1
 ```
 
+
+Nous voulons visualiser la prévalence des phylum. Pour se faire, nous utilisons différentes fonctions. Ces graphiques montrent le lien entre la prévalence et l'abondance totale.
 ```{r}
-# Subset to the remaining phyla
 prevdf1 = subset(prevdf, Phylum %in% get_taxa_unique(ps1, "Phylum"))
 ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps),color=Phylum)) +
-  # Include a guess for parameter
-  geom_hline(yintercept = 0.05, alpha = 0.5, linetype = 2) +  geom_point(size = 2, alpha = 0.7) +
+
+  geom_hline(yintercept = 0.15, alpha = 0.5, linetype = 2) +  geom_point(size = 2, alpha = 0.7) +
   scale_x_log10() +  xlab("Total Abundance") + ylab("Prevalence [Frac. Samples]") +
   facet_wrap(~Phylum) + theme(legend.position="none")
 ```
 
+Nous définissons ensuite un seuil de prévalence à 15%.
 ```{r}
-# Define prevalence threshold as 5% of total samples
-prevalenceThreshold = 0.05 * nsamples(ps)
+prevalenceThreshold = 0.15 * nsamples(ps)
 prevalenceThreshold
 ```
 
+Nous faisons ensuite un filtrage de la prévalence en utilisant la fonction "prune_taxa", qui permet d'éliminer les taxons que l'on ne souhaite pas voir apparaître. Le jeu de données est alors assigné sous "ps2".
 ```{r}
 # Execute prevalence filter, using `prune_taxa()` function
 keepTaxa = rownames(prevdf1)[(prevdf1$Prevalence >= prevalenceThreshold)]
@@ -329,23 +344,26 @@ ps2 = prune_taxa(keepTaxa, ps)
 ```
 
 
-
+# Agglomération des taxons
+Nous voulons savoir combien de genres seront présents après le filtrage.
 ```{r}
-# How many genera would be present after filtering?
 length(get_taxa_unique(ps2, taxonomic.rank = "Genus"))
 ```
 
+Il y a 95 genres présents.
+Nous assignons alors ce résultat sous le nom de "ps3".
 ```{r}
 ps3 = tax_glom(ps2, "Genus", NArm = TRUE)
 ```
 
-
+Nous défissons ensuite la hauteur de l'arbre qu'on construira. La fonction "tip_glom" permet d'agglomérer les extrémités de l'arbre lorsque la distance est inférieur à 0.4.
 ```{r}
 h1 = 0.4
 ps4 = tip_glom(ps2, h = h1)
 ```
 
 
+Nous voulons créer des arbres. Le premier permet d'en créer un avant l'agglomération, avec les données de "ps2". La deuxième fonction permet de créer un arbre selon le genre et la troisième fonction selon la hauteur de l'arbre.
 ```{r}
 multiPlotTitleTextSize = 15
 p2tree = plot_tree(ps2, method = "treeonly",
@@ -366,6 +384,16 @@ p4tree = plot_tree(ps4, method = "treeonly",
 grid.arrange(nrow = 1, p2tree, p3tree, p4tree)
 ```
 
+Nous remarquons qu'il y a moins d'extrémités lorsque nous construisons un arbre selon le genre.
+
+
+
+
+# Transformation de la valeur d'abondance selon la profondeur
+
+Ceci est rendu possible par la fonction "transform_sample_counts". La fonction "plot_abundance" permet de créer un graphique selon l'abondance relative.
+
+Le Phylum qui est utilisé par la suite est celui des Actinobacteria. Ce choix est totalement arbitraire, il s'agit d'un exemple. 
 ```{r}
 plot_abundance = function(physeq,title = "",
                           Facet = "Order", Color = "Phylum"){
@@ -383,22 +411,34 @@ plot_abundance = function(physeq,title = "",
 }
 ```
 
+Nous transformons donc le jeu de données en abondance relative, que nous enregistrons sous l'objet "ps3ra".
 ```{r}
 # Transform to relative abundance. Save as new object.
 ps3ra = transform_sample_counts(ps3, function(x){x / sum(x)})
 ```
 
+
+Nous pouvons ensuite voir l'abondance après transformation.
 ```{r}
 plotBefore = plot_abundance(ps3,"")
 plotAfter = plot_abundance(ps3ra,"")
-# Combine each plot into one graphic.
 grid.arrange(nrow = 2,  plotBefore, plotAfter)
 ```
+
+Les ordres des Actinobacteria présents sont les Actinomarinales et les Microtrichales. Nous pouvons constater que les Actinomarinales sont présentes en plus grande abondance relative que les Microtrichales. Le premier ordre semblerait plus abondant dans les profondeurs de la rade de Brest qu'à la surface par exemple. Les Microtrichales quant à elles ne sembleraient pas abondantes dans une profondeur moyenne. Ceci est en corrélation avec le graphique des abondances en bar plot effectué précédemment.
+En regardant "taxa_print", il s'avère que le genre qui appartient aux Actinomarinales est du genre des Candidatus. 
+
+
+# Sous-ensemble par taxonomie
+Nous spécifions un rang taxonomique plus précis. Comme dit précédemment, le seul genre des Actinomarinales présent est Candidatus. Nous constatons que ce genre est présent en plus grande abondance en profondeu, et semble être plus dispersé à la surface. 
+
 ```{r}
-psOrd = subset_taxa(ps3ra, Order == "Microtrichales")
+psOrd = subset_taxa(ps3ra, Order == "Actinomarinales")
 plot_abundance(psOrd, Facet = "Genus", Color = NULL)
 ```
 
+
+# Transformation de la valeur d'abondance selon la date
 
 ```{r}
 plot_abundance1 = function(physeq,title = "",
@@ -429,10 +469,17 @@ plotAfter1 = plot_abundance1(ps3ra1,"")
 grid.arrange(nrow = 2,  plotBefore1, plotAfter1)
 ```
 
+Nous constatons une nouvelle fois que les Actinomarinales semblent plus abondants que les Microtrichales et cela, peu qu'importe la date, donc la saison. Les Actinomarinales sembleraient abondants aussi bien en fin d'été qu'en fin de la saison d'hiver. Concernant les Microtrichales, il s'avère que les données sont un peu plus dispersées mais il y aurait une légère tendance à une abondance relative plus importante à l'approche du printemps que quelques jours avant l'automne. 
+
+
+
 ```{r}
-psOrd1 = subset_taxa(ps3ra1, Order == "Microtrichales")
+psOrd1 = subset_taxa(ps3ra1, Order == "Actinomarinales")
 plot_abundance1(psOrd1, Facet = "Genus", Color = NULL)
 ```
+
+Bien que les données ne sont pas très nettes, ce genre semble plus présent en fin de saison hivernale, même si rien n'est réellement précis.
+
 
 ```{r}
 # Transform data to proportions as appropriate for Bray-Curtis distances
@@ -440,13 +487,26 @@ ps.prop <- transform_sample_counts(ps, function(tax_table) tax_table/sum(tax_tab
 ord.pcoa.bray <- ordinate(ps.prop, method="PCoA", distance="bray")
 ```
 
+
+
 ## Visualisation de l'ordination
-On colore la légende quand "when"
 
 ```{r}
-plot_ordination(ps.prop, ord.pcoa.bray, color="Profondeur", shape = "Date", title="Bray PCoA")
+pslog <- transform_sample_counts(ps, function(x) log(1 + x))
+out.wuf.log <- ordinate(pslog, method = "PCoA", distance = "bray")
 ```
 
+```{r}
+evals <- out.wuf.log$values$Eigenvalues
+plot_ordination(pslog, out.wuf.log, color = "Profondeur", shape="Date") +
+  labs(col = "Profondeur",shape= "Date")
+```
+
+Nous remarquons que les échantillons sont corrélés selon la profondeur et la saison. Nous remarquons une probable correspondance entre les échantillons profonds et de surface pour la saison d'hiver. Cela sera confirmé par la suite, en regardant l'abondance des Phylum et des genres, où on voit une faible différence d'abondance. 
+
+# Visualisation de l'abondance des différents phylums
+
+Nous pouvons en plus créer un graphique représentant l'abondance des différents phylums selon la date.
 ```{r}
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
@@ -454,12 +514,24 @@ ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Date", fill="Phylum") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
+Nous remarquons que quelque soit la date et la profondeur, les protéobactéries sont les plus abondantes. Nous voyons en plus que pour les cyanobactéries, ces espèces sont retrouvées en plus grande abondance dans une profondeur moyenne et à la surface de la rade de Brest. 
+
+Nous pouvons faire une analyse plus précise pour voir les genres les plus abondants. Pour ceci, nous faisons le même code qu'avant, en remplaçant "Phylum" par "Genus".
+```{r}
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+plot_bar(ps.top20, x="Date", fill="Genus") + facet_wrap(~Profondeur, scales="free_x")
+```
+
+Nous remarquons ainsi que dans les profondeurs, le genre le plus abondant est "Clade_Ia" quelque soit la saison. En moyenne profondeur, il semblerait que Synechococcus et Clade_IA soit en abondance relative plus ou moins égale. Par contre, à la surface de la rade de Brest, le genre le plus abondant en été est Synechococcus tandis qu'en hiver, il n'y en a pas, ou non visible du moins sur ces graphiques.
+Dans la littérature, il est prouvé que Synechococcus sembleraient toutes photoautotrophes obligatoires, c'est pour cette raison que leur abondance est très basse dans l'environnement profond. La prolifération des cyanobactéries, dont font partis les Synechococcus est meilleure quand les eaux sont relativement plus chaudes. C'est donc pour cette raison qu'on les retrouve préférentiellement en été plutôt qu'en hiver. 
 
 
 
-
-
-
+# Conclusion
+A travers ces méthodes bioinformatiques, nous avons pu, à partir d'un jeu de données, apprécier les abondances différentielles des microorganismes dans les eaux de la rade de Brest. Les échantillonnages ont eu lieu lors de deux saisons différentes : en hiver et en été. Egalement, il y a eu des prélèvements avec des profondeurs différentes : au fond, à une profondeur moyenne et à la surface. 
+Après toutes les étapes qui ont été faites, de l'échantillonnage jusqu'à l'appréciation de l'abondance des microorganismes en passant par des étapes de filtrage et de transformation, nous pouvons conclure qu'il existe un lien entre les abondances de bactéries, les saisons et les profondeurs. Les Synechococcus représentent des biomarqueurs dans les zones eutrophiques, photiques avec une température minimale nécessaire. 
 
 
 
