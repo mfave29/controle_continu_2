@@ -1,5 +1,5 @@
 ---
-title: "000_dada2"
+title: "Contrôle continu 2 - Ecogénomique 2 - Rade de Brest"
 output: 
   github_document:
     toc: true
@@ -8,15 +8,21 @@ output:
 
 # Importation des données
 
+Les données ont été importées. Il s'agit de prélèvements effectués dans la rade de Brest en 2014 et en 2015. Les données ont été définies dans un répertoire précis.
+
 ```{bash}
 wget https://pagesperso.univ-brest.fr/~maignien/teaching/M1-MFA/UE-Ecogenomique2/EcoG2_data_cc2.tar.gz
 tar xvzf EcoG2_data_cc2.tar.gz
 ```
 
+
 ```{r}
 path <- "~/controle_continu_2/controle_continu_2/Stratif_CC2"
 list.files(path)
 ```
+
+Cette liste représente les 11 échantillons qui ont été prélevés, avec les reads 1 et 2 pour chaque échantillon. Il s'agit de fichiers fastq, des séquences associées à des scores de qualité. 
+
 
 # Forward and Reverse
 ```{r}
@@ -26,14 +32,14 @@ fnRs <- sort(list.files(path, pattern="_R2.fastq", full.names = TRUE))
 sample.names <- sapply(strsplit(basename(fnFs), "_R"), `[`,1)
 ```
 
-
+Les données ont été nommées selon qu'il s'agisse de reads 1 ou 2. La distinction a été effectuée en considérant la fin des titres des séquences.
 
 # Profils de score de qualité 
 ```{r}
 plotQualityProfile(fnFs[1:2])
 ```
 
-Ici sont présentés les profiles des scores de qualité des forwards de deux échantillons différents. Le score de qualité moyen correspond à la ligne verte. La ligne orange correspond aux quartiles de la distribution du score de qualité.  
+Ici sont présentés les profiles des scores de qualité des forwards de deux échantillons différents. Le score de qualité moyen correspond à la ligne verte.  
 Les premières lectures sont de bonne qualité. Plus on fait de lectures, moins la qualité est bonne. C'est pour cela qu'on filtrera plus tard. 
 
 Nous faisons la même chose pour les mêmes échantillons, cette fois-ci avec les reverse : 
@@ -46,6 +52,7 @@ Nous pouvons constater que les read reverse sont de moins bonne qualité, ce qui
 
 
 #Filtrage et coupures
+
 Tout d'abord, nous attribuons des noms aux fichiers filtrés. Ainsi, les forward filtrés sont sauvegardés sous le nom de filtFs et les reverse filtrés sous le nom de filtRs.
 
 ```{r}
@@ -61,7 +68,8 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(250,220), trimLeft=c
 head(out)
 ```
 
-Nous avons choisi de couper à 210 pb pour les forward car après, la qualité diminuait. Cela a été fait à 180pb pour les reverse. 
+Nous avons choisi de couper à 250 pb pour les forward. Cela a été fait à 220pb pour les reverse. Il était nécessaire d'avoir une séqence de 450 pb environ, car la région V4-V5 comporte ce nombre de pb environ. Il faut que les read se chevauchent.
+
 Nous avions vu précédemment, par les graphiques, que la qualité des forward était meilleur que les reverse.
 . 
 
@@ -71,11 +79,13 @@ Le paramètre trimLeft a été utilisé afin d'enlever les primers utilisés pr�
 
 
 # Apprendre le taux d'erreur
+
 Les manipulations suivantes permettront de visualiser l'estimation des taux d'erreur et l'inférence de la composition de l'échantillon, afin de converger pour une meilleure cohérence. Nous faisons cela pour les Forward tout d'abord, puis pour les Reverse.
 
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
 ```
+
 Il s'agit de nombre de bases qui seront utilisées pour l'apprentisssage du taux d'erreur pour les forward.
 
 ```{r}
@@ -93,6 +103,7 @@ Nous voyons que les taux d'erreur ont une tendance à diminuer des lors que l'on
 
  
 # Inférence des échantillons
+
 Nous appliquons cela aux forward filtrés et découpés. Cela permet de faire des comparaisons. Nous commençons par les forward puis nous faisons cette manipulation pour les reverse.
 
 ```{r}
@@ -114,6 +125,7 @@ Ce résultat signifie qu'il y a 937 variants de séquences à partir de 38016 s�
 
 
 # Fusions des reads
+
 La fusion des forward et des reverse permet d'avoir des séquences débruitées. Cela peut se faire par complémentarité inverse entre les forward et les reverse. Il y a formation de contigs. Il faut absolument qu'il y ait un certain chevauchement. 
 
 La fonction "merge" permet de faire cela, tout en éliminant les paires qui ne se chevauchent pas donc, ou s'il y  trop de divergences dans cette région chevauchante. 
@@ -125,6 +137,7 @@ mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 
 
 # Construction d'une table de séquence
+
 Nous construisons une table ASV, pour Amplicon Sequence Variant table. 
 Un variant de séquence d'amplicon est une séquence unique d'ADN. Ces variants sont créés après le filtrage que nous avons effectué auparavant. Cela permet la classification des séquences en groupement d'espèces. Cette méthode est plus précise que les OTU car la première permet de voir ne serait-ce qu'un changement de nucléotide. 
 
@@ -144,6 +157,7 @@ Nous avons les longueurs des séquences.
 
 
 # Elimination des chimères
+
 Dada ne permet pas d'éliminer les chimères. Ceci est plus facile à faire à partir d'ASV en comparaison aux OTU. 
 
 ```{r}
@@ -171,12 +185,12 @@ rownames(track) <- sample.names
 head(track)
 ```
 
-
+Par exemple, pour l'échantillon du Fond1 prélevé le 10 septembre 2014, nous voyons qu'il y a une perte de 47% à peu près à la suite de filtrage, de débruitage et de fusion. 
 Cela nous a permis de vérifier la cohérence. Nous voyons donc que le nombre a chuté à l'issue du filtrage. 
 
 
 # Assignation de la taxonomie
-Grâce à la fonction "assignTaxonomy" permet de classer les séquences avec une taxonomie connue. Nous prenons la base de données Silva. 
+Grâce à la fonction "assignTaxonomy", cela permet de classer les séquences avec une taxonomie connue. Nous prenons la base de données Silva. 
 
 ```{bash}
 wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz
@@ -419,6 +433,27 @@ grid.arrange(nrow = 2,  plotBefore1, plotAfter1)
 psOrd1 = subset_taxa(ps3ra1, Order == "Microtrichales")
 plot_abundance1(psOrd1, Facet = "Genus", Color = NULL)
 ```
+
+```{r}
+# Transform data to proportions as appropriate for Bray-Curtis distances
+ps.prop <- transform_sample_counts(ps, function(tax_table) tax_table/sum(tax_table))
+ord.pcoa.bray <- ordinate(ps.prop, method="PCoA", distance="bray")
+```
+
+## Visualisation de l'ordination
+On colore la légende quand "when"
+
+```{r}
+plot_ordination(ps.prop, ord.pcoa.bray, color="Profondeur", shape = "Date", title="Bray PCoA")
+```
+
+```{r}
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+plot_bar(ps.top20, x="Date", fill="Phylum") + facet_wrap(~Profondeur, scales="free_x")
+```
+
 
 
 
