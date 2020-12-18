@@ -11,6 +11,26 @@ output:
 
 A travers les différentes approches bioinformatiques utilisées, l'objectif était de voir les influences relatives que pouvaient entraîner la profondeur et la saison sur la structure des communautés planctoniques de la rade de Brest. Enfin, nous voulions voir s'il existait des biomarqueurs de saison (hiver et été).
 
+# Importation des packages
+```{r}
+library(BiocManager)
+library(BiocVersion)
+library(Biostrings)
+library(dada2)
+library(DECIPHER)
+library(DESeq2)
+library(ggplot2)
+library(grDevices)
+library(gridExtra)
+library(igraph)
+library(IRanges)
+library(phyloseq)
+library(phyloseqGraphTest)
+library(pls)
+library(ps)
+library(reshape2)
+```
+
 
 # Importation des données
 
@@ -269,6 +289,11 @@ fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
         rearrangement = "stochastic", control = pml.control(trace = 0))
 detach("package:phangorn", unload=TRUE)
 ```
+
+```{r}
+library(phyloseq)
+```
+
 
 ```{r}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
