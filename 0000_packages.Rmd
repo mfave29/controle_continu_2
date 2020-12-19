@@ -1,0 +1,91 @@
+
+
+# update VM configuration
+``` {bash}
+sudo apt-get update -y 
+sudo apt-get install -y libbz2-dev
+sudo apt-get install -y liblzma-dev
+```
+
+```{r package install}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = '3.11')
+BiocManager::install("dada2", version = '3.11')
+```
+
+```{r}
+install.packages("usethis")
+```
+
+```{r}
+library(usethis)
+```
+
+```{r}
+install.packages("rmarkdown")
+```
+
+```{r}
+install.packages("knitr")
+```
+
+```{r}
+install.packages("BiocStyle")
+```
+```{r}
+if (! requireNamespace ("BiocManager", tranquillement = TRUE))
+    install.packages ("BiocManager")
+BiocManager :: install ("phyloseq")
+```
+```{r}
+source("http://bioconductor.org/biocLite.R")
+biocLite("phyloseq")
+```
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.12")
+```
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("phyloseq")
+```
+
+```{r}
+BiocManager::install("phyloseq")
+```
+
+```{bash}
+sudo apt-get install libglpk-dev
+```
+
+```{bash}
+git config --global user.email "mfave29@gmail.com"
+git config --global user.name "mfave"
+```
+
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
